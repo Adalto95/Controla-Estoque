@@ -48,7 +48,7 @@ Para rodar este projeto localmente, siga os passos abaixo:
 
 1.  Clone o repositório:
     ```bash
-    git clone [[URL_DO_controla_estoque](https://github.com/Adalto95/Controla-Estoque.git)]
+    git clone [(https://github.com/Adalto95/Controla-Estoque.git)]
     ```
 
 2.  Importe o banco de dados `banco.sql` para o seu servidor MySQL.
