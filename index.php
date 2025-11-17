@@ -7,36 +7,40 @@ require_once 'db.php'; // Inclui o arquivo de conexão com o banco de dados
 $error = '';
 
 if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
-    $token = $_COOKIE['remember_token'];
-    $hash = hash('sha256', $token);
-    $stmt = $conn->prepare("SELECT rt.user_id, u.nome, u.perfil FROM remember_tokens rt JOIN usuarios u ON u.id = rt.user_id WHERE rt.token_hash = :h AND rt.expires_at > NOW()");
-    $stmt->bindParam(':h', $hash);
-    $stmt->execute();
-    $u = $stmt->fetch();
-    if ($u) {
-        $_SESSION['user_id'] = $u->user_id;
-        $_SESSION['user_name'] = $u->nome;
-        $_SESSION['user_profile'] = $u->perfil;
-        if ($u->perfil === 'admin') {
-            $_SESSION['permissions'] = [
-                'view_suppliers' => 1,
-                'add_supplier' => 1,
-                'toggle_supplier_status' => 1,
-                'add_product' => 1,
-                'edit_product_name' => 1,
-                'update_stock' => 1,
-                'toggle_product_status' => 1,
-                'manage_permissions' => 1
-            ];
-        } else {
-            $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions WHERE perfil = :perfil");
-            $pstmt->bindParam(':perfil', $u->perfil);
-            $pstmt->execute();
-            $perms = $pstmt->fetch();
-            $_SESSION['permissions'] = $perms ? (array)$perms : [];
+    try {
+        $token = $_COOKIE['remember_token'];
+        $hash = hash('sha256', $token);
+        $stmt = $conn->prepare("SELECT rt.user_id, u.nome, u.perfil FROM remember_tokens rt JOIN usuarios u ON u.id = rt.user_id WHERE rt.token_hash = :h AND rt.expires_at > NOW()");
+        $stmt->bindParam(':h', $hash);
+        $stmt->execute();
+        $u = $stmt->fetch();
+        if ($u) {
+            $_SESSION['user_id'] = $u->user_id;
+            $_SESSION['user_name'] = $u->nome;
+            $_SESSION['user_profile'] = $u->perfil;
+            if ($u->perfil === 'admin') {
+                $_SESSION['permissions'] = [
+                    'view_suppliers' => 1,
+                    'add_supplier' => 1,
+                    'toggle_supplier_status' => 1,
+                    'add_product' => 1,
+                    'edit_product_name' => 1,
+                    'update_stock' => 1,
+                    'toggle_product_status' => 1,
+                    'manage_permissions' => 1
+                ];
+            } else {
+                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $pstmt->bindParam(':perfil', $u->perfil);
+                $pstmt->execute();
+                $perms = $pstmt->fetch();
+                $_SESSION['permissions'] = $perms ? (array)$perms : [];
+            }
+            header("Location: suppliers.php");
+            exit();
         }
-        header("Location: suppliers.php");
-        exit();
+    } catch (PDOException $e) {
+        error_log('Auto-login falhou: ' . $e->getMessage());
     }
 }
 
@@ -80,15 +84,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['permissions'] = $perms ? (array)$perms : [];
             }
             if (isset($_POST['remember_me'])) {
-                $token = bin2hex(random_bytes(32));
-                $hash = hash('sha256', $token);
-                $expires = date('Y-m-d H:i:s', time() + 60*60*24*30);
-                $st = $conn->prepare("INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (:uid, :h, :e)");
-                $st->bindParam(':uid', $user->id);
-                $st->bindParam(':h', $hash);
-                $st->bindParam(':e', $expires);
-                $st->execute();
-                setcookie('remember_token', $token, time() + 60*60*24*30, '/', '', false, true);
+                try {
+                    $token = bin2hex(random_bytes(32));
+                    $hash = hash('sha256', $token);
+                    $expires = date('Y-m-d H:i:s', time() + 60*60*24*30);
+                    $st = $conn->prepare("INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (:uid, :h, :e)");
+                    $st->bindParam(':uid', $user->id);
+                    $st->bindParam(':h', $hash);
+                    $st->bindParam(':e', $expires);
+                    $st->execute();
+                    setcookie('remember_token', $token, time() + 60*60*24*30, '/', '', false, true);
+                } catch (PDOException $e) {
+                    error_log('Lembrar login falhou: ' . $e->getMessage());
+                }
             }
             header("Location: suppliers.php");
             exit();
@@ -116,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if ($error): ?>
             <p class="error-message"><?php echo $error; ?></p>
         <?php endif; ?>
-        <form method="POST">
+        <form method="POST" action="index.php">
             <div class="form-group">
                 <label for="email" class="sr-only">Email</label>
                 <input type="email" id="email" name="email" placeholder="seu.email@exemplo.com" required>
