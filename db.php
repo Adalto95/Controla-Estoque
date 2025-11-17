@@ -7,7 +7,6 @@ $user = "controlaestoque";
 $pass = "senha"; // Cuidado para manter essa senha segura!
 $db_name = "controlaestoque";
 
-$conn = null;
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8", $user, $pass);

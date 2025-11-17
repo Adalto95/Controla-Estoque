@@ -4,7 +4,10 @@ require_once 'auth_check.php'; // Inclui a verificação de autenticação
 require_once 'db.php';         // Inclui a conexão com o banco de dados
 
 $is_admin = ($_SESSION['user_profile'] === 'admin');
-$can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
+$permissions = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+$can_edit_name = ($is_admin || (!empty($permissions['edit_product_name']) && $permissions['edit_product_name'] == 1));
+$can_update_stock = ($is_admin || (!empty($permissions['update_stock']) && $permissions['update_stock'] == 1));
+$can_add_product = ($is_admin || (!empty($permissions['add_product']) && $permissions['add_product'] == 1));
 
 $supplier_id = filter_input(INPUT_GET, 'supplier_id', FILTER_VALIDATE_INT);
 $supplier_name = 'Carregando...';
@@ -66,13 +69,17 @@ try {
             <h2>Estoque de Pisos</h2>
             <div class="product-controls">
                 <input type="text" id="product-search" placeholder="Pesquisar produto em tempo real..." class="search-input">
+                <select id="product-sort" class="search-input" style="max-width:200px">
+                    <option value="name_asc">A–Z</option>
+                    <option value="name_desc">Z–A</option>
+                </select>
                 <div class="control-buttons">
                     <?php if ($is_admin): ?>
                         <button id="toggle-inactive-products" type="button" class="button back-button">
                             <i class="fas fa-eye-slash"></i> Mostrar Inativos
                         </button>
                     <?php endif; ?>
-                    <?php if ($can_manage_data): ?>
+                    <?php if ($can_add_product): ?>
                         <button type="button" class="button add-inline-button" onclick="openAddProductModal(<?php echo $supplier_id; ?>)">Adicionar Produto <i class="fas fa-plus"></i></button>
                     <?php endif; ?>
                 </div>
@@ -171,8 +178,10 @@ try {
         document.addEventListener('DOMContentLoaded', () => {
             const currentSupplierId = <?php echo json_encode($supplier_id); ?>;
             let isAdmin = <?php echo json_encode($is_admin); ?>;
-            let canManageData = <?php echo json_encode($can_manage_data); ?>;
+            let canEditName = <?php echo json_encode($can_edit_name); ?>;
+            let canUpdateStock = <?php echo json_encode($can_update_stock); ?>;
             let showInactive = false;
+            let currentSort = 'name_asc';
 
             // Função para carregar e exibir produtos
             async function loadProducts(supplierId, searchTerm = '') {
@@ -181,7 +190,7 @@ try {
                 productListBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Carregando produtos...</td></tr>';
                 noProductsMessage.style.display = 'none';
 
-                let url = `api/get_products.php?supplier_id=${supplierId}&search=${searchTerm}`;
+                let url = `api/get_products.php?supplier_id=${supplierId}&search=${searchTerm}&sort=${currentSort}`;
                 if (isAdmin) {
                     url += `&show_inactive=${showInactive ? '1' : '0'}`;
                 }
@@ -197,12 +206,16 @@ try {
                             const isZeroStock = (parseFloat(product.estoque1) === 0 && parseFloat(product.estoque2) === 0 && parseFloat(product.estoque3) === 0 && parseFloat(product.estoque4) === 0);
                             const rowClass = `${isZeroStock ? 'zero-stock' : ''} ${product.ativo == 0 ? 'inactive-row' : ''}`;
                             
-                            let rowHtml = `<tr data-product-id="${product.id}" class="${rowClass}">
-                                <td>${escapeHtml(product.produto_nome)}</td>`;
+                            let rowHtml = `<tr data-product-id="${product.id}" class="${rowClass}">`;
+                            if (canEditName) {
+                                rowHtml += `<td class="product-name-cell"><input type="text" class="product-name-input" value="${escapeHtml(product.produto_nome)}"></td>`;
+                            } else {
+                                rowHtml += `<td>${escapeHtml(product.produto_nome)}</td>`;
+                            }
 
                             for (let i = 1; i <= 4; i++) {
                                 const stockValue = parseFloat(product['estoque' + i]).toFixed(2); // Formata para 2 casas decimais
-                                if (canManageData) {
+                                if (canUpdateStock) {
                                     rowHtml += `<td class="stock-cell">
                                                     <input type="number" step="0.01"
                                                            name="estoque${i}" 
@@ -234,8 +247,11 @@ try {
                         });
 
                         // Re-adiciona os event listeners para os inputs de estoque se for admin ou gerente
-                        if (canManageData) {
+                        if (canUpdateStock) {
                             addStockInputListeners();
+                        }
+                        if (canEditName) {
+                            addProductNameListeners();
                         }
                         
                         // Adiciona listeners para os botões de inativação
@@ -286,6 +302,12 @@ try {
             const productSearchInput = document.getElementById('product-search');
             productSearchInput.addEventListener('keyup', function() {
                 loadProducts(currentSupplierId, this.value);
+            });
+
+            const productSortSelect = document.getElementById('product-sort');
+            productSortSelect.addEventListener('change', function() {
+                currentSort = this.value;
+                loadProducts(currentSupplierId, productSearchInput.value);
             });
 
             // Event listener para o botão de alternar inativos
@@ -380,6 +402,51 @@ try {
                             alert('Erro de conexão ao atualizar o estoque. Verifique o console para mais detalhes.');
                             this.value = originalValue; 
                         }
+                    });
+                });
+            }
+
+            function addProductNameListeners() {
+                const nameInputs = document.querySelectorAll('.product-name-input');
+                nameInputs.forEach(input => {
+                    let originalValue = input.value;
+                    input.addEventListener('focus', function() {
+                        originalValue = this.value;
+                    });
+                    async function commitChange(el) {
+                        const productId = el.closest('tr').dataset.productId;
+                        const newName = el.value.trim();
+                        if (newName === '' || newName === originalValue) {
+                            el.value = originalValue;
+                            return;
+                        }
+                        try {
+                            const response = await fetch('api/update_product_name.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: `product_id=${productId}&new_name=${encodeURIComponent(newName)}`
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                el.style.backgroundColor = '#d4edda';
+                                setTimeout(() => { el.style.backgroundColor = ''; }, 1000);
+                                originalValue = newName;
+                            } else {
+                                el.style.backgroundColor = '#f8d7da';
+                                alert('Erro ao atualizar nome: ' + data.message);
+                                el.value = originalValue;
+                            }
+                        } catch (error) {
+                            console.error('Erro ao atualizar nome do produto:', error);
+                            el.style.backgroundColor = '#f8d7da';
+                            alert('Erro de conexão ao atualizar o nome.');
+                            el.value = originalValue;
+                        }
+                    }
+                    input.addEventListener('change', function() { commitChange(this); });
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { e.preventDefault(); commitChange(this); }
+                        if (e.key === 'Escape') { this.value = originalValue; this.blur(); }
                     });
                 });
             }

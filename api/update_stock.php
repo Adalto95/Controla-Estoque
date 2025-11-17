@@ -13,13 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 // Apenas admins podem atualizar o estoque
-if (!in_array($_SESSION['user_profile'], ['admin', 'gerente'])) {
+$is_admin = ($_SESSION['user_profile'] === 'admin');
+$perms = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+if (!$is_admin && (empty($perms['update_stock']) || $perms['update_stock'] != 1)) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
     exit();
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_id = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
-    $stock_field = filter_input(INPUT_POST, 'stock_field', FILTER_SANITIZE_STRING); // ex: estoque1, estoque2
+    $stock_field = isset($_POST['stock_field']) ? $_POST['stock_field'] : '';
     $new_value = str_replace(',', '.', $_POST['new_value']); // aceita vírgula ou ponto
     $new_value = floatval($new_value);
 

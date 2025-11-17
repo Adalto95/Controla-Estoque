@@ -20,7 +20,7 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Usuários - Admin</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css)">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
     <div class="main-container">
@@ -34,7 +34,11 @@ try {
 
         <main>
             <div class="user-controls">
-                <button type="button" class="button add-inline-button" onclick="openAddUserModal()">Adicionar Novo Usuário <i class="fas fa-user-plus"></i></button>
+                <input type="text" id="user-search" placeholder="Buscar usuário..." class="search-input">
+                <div class="control-buttons">
+                    <button id="toggle-inactive-users" type="button" class="button back-button"><i class="fas fa-eye-slash"></i> Mostrar Inativos</button>
+                    <button type="button" class="button add-inline-button" onclick="openAddUserModal()">Adicionar Novo Usuário <i class="fas fa-user-plus"></i></button>
+                </div>
             </div>
             
             <div class="table-responsive">
@@ -44,22 +48,11 @@ try {
                             <th>Nome</th>
                             <th>Email</th>
                             <th>Perfil</th>
+                            <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach ($users as $user): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($user->nome); ?></td>
-                                <td><?php echo htmlspecialchars($user->email); ?></td>
-                                <td><?php echo htmlspecialchars($user->perfil); ?></td>
-                                <td class="action-cell">
-                                    <button class="icon-button change-password-btn" data-user-id="<?php echo $user->id; ?>" data-user-name="<?php echo htmlspecialchars($user->nome); ?>">
-                                        <i class="fas fa-key"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+                    <tbody id="user-list-body">
                     </tbody>
                 </table>
             </div>
@@ -115,7 +108,90 @@ try {
     </div>
 
     <script>
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
         document.addEventListener('DOMContentLoaded', () => {
+            let showInactive = false;
+            const userSearchInput = document.getElementById('user-search');
+
+            async function loadUsers(searchTerm = '') {
+                const tbody = document.getElementById('user-list-body');
+                tbody.innerHTML = '<tr><td colspan="5" class="loading-message">Carregando usuários...</td></tr>';
+                let url = `api/search_users.php?search=${searchTerm}`;
+                url += `&show_inactive=${showInactive ? '1':'0'}`;
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    tbody.innerHTML = '';
+                    if (data.success && data.users.length > 0) {
+                        data.users.forEach(u => {
+                            const statusText = u.ativo == 1 ? 'Ativo' : 'Inativo';
+                            const btnClass = u.ativo == 1 ? 'btn-inativar' : 'btn-ativar';
+                            const btnLabel = u.ativo == 1 ? 'Inativar' : 'Ativar';
+                            const row = `
+                                <tr data-user-id="${u.id}">
+                                    <td>${escapeHtml(u.nome)}</td>
+                                    <td>${escapeHtml(u.email)}</td>
+                                    <td>${escapeHtml(u.perfil)}</td>
+                                    <td>${statusText}</td>
+                                    <td class="action-cell">
+                                        <div class="action-button-group">
+                                            <button class="button" style="background-color:#6b7280" data-action="change-password" data-user-id="${u.id}" data-user-name="${escapeHtml(u.nome)}"><i class="fas fa-key"></i> Trocar Senha</button>
+                                            ${u.perfil !== 'admin' ? `<button class="toggle-status-btn ${btnClass}" data-action="toggle-status" data-user-id="${u.id}" data-status="${u.ativo}">${btnLabel}</button>` : ''}
+                                        </div>
+                                    </td>
+                                </tr>`;
+                            tbody.innerHTML += row;
+                        });
+                        addUserActionListeners();
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" class="info-message">Nenhum usuário encontrado.</td></tr>';
+                    }
+                } catch (e) {
+                    console.error('Erro ao carregar usuários:', e);
+                    tbody.innerHTML = '<tr><td colspan="5" class="error-message">Erro ao carregar usuários.</td></tr>';
+                }
+            }
+
+            function addUserActionListeners() {
+                document.querySelectorAll('button[data-action="change-password"]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const userId = this.dataset.userId;
+                        const userName = this.dataset.userName;
+                        openChangePasswordModal(userId, userName);
+                    });
+                });
+                document.querySelectorAll('button[data-action="toggle-status"]').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const userId = this.dataset.userId;
+                        const currentStatus = this.dataset.status;
+                        const newStatus = currentStatus == 1 ? 0 : 1;
+                        const action = newStatus === 0 ? 'inativar' : 'ativar';
+                        const confirmed = confirm(`Você tem certeza que deseja ${action} este usuário?`);
+                        if (!confirmed) return;
+                        try {
+                            const response = await fetch('api/toggle_user_status.php', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`id=${userId}&status=${newStatus}` });
+                            const result = await response.json();
+                            if (result.success) {
+                                loadUsers(userSearchInput.value);
+                            } else {
+                                alert(result.message);
+                            }
+                        } catch (err) {
+                            console.error('Erro ao alternar status do usuário:', err);
+                            alert('Erro de conexão ao alternar status do usuário.');
+                        }
+                    });
+                });
+            }
+
+            userSearchInput.addEventListener('keyup', function() { loadUsers(this.value); });
+            const toggleInactiveBtn = document.getElementById('toggle-inactive-users');
+            toggleInactiveBtn.addEventListener('click', () => { showInactive = !showInactive; toggleInactiveBtn.innerHTML = showInactive ? '<i class="fas fa-eye"></i> Mostrar Ativos' : '<i class="fas fa-eye-slash"></i> Mostrar Inativos'; loadUsers(userSearchInput.value); });
+            loadUsers();
             // --- Funções do Modal Adicionar Usuário ---
             const addUserModal = document.getElementById('addUserModal');
             const addUserForm = document.getElementById('addUserForm');

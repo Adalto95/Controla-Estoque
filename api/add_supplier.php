@@ -6,18 +6,19 @@ require_once '../db.php';         // Ajuste o caminho
 header('Content-Type: application/json');
 
 // Admins e Gerentes podem adicionar fornecedores
-$allowed_profiles = ['admin', 'gerente'];
-if (!in_array($_SESSION['user_profile'], $allowed_profiles)) {
+$is_admin = ($_SESSION['user_profile'] === 'admin');
+$perms = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+if (!$is_admin && (empty($perms['add_supplier']) || $perms['add_supplier'] != 1)) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
     exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome_fornecedor = trim(filter_input(INPUT_POST, 'nome_fornecedor', FILTER_SANITIZE_STRING));
+    $nome_fornecedor = isset($_POST['nome_fornecedor']) ? trim($_POST['nome_fornecedor']) : '';
 
     // Validação
-    if (empty($nome_fornecedor)) {
-        echo json_encode(['success' => false, 'message' => 'Nome do fornecedor não pode ser vazio.']);
+    if ($nome_fornecedor === '' || mb_strlen($nome_fornecedor) > 100) {
+        echo json_encode(['success' => false, 'message' => 'Nome do fornecedor inválido.']);
         exit();
     }
 

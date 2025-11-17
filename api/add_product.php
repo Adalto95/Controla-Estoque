@@ -6,22 +6,23 @@ require_once '../db.php';         // Ajuste o caminho
 header('Content-Type: application/json');
 
 // Admins e Gerentes podem adicionar produtos
-$allowed_profiles = ['admin', 'gerente'];
-if (!in_array($_SESSION['user_profile'], $allowed_profiles)) {
+$is_admin = ($_SESSION['user_profile'] === 'admin');
+$perms = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+if (!$is_admin && (empty($perms['add_product']) || $perms['add_product'] != 1)) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
     exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fornecedor_id = filter_input(INPUT_POST, 'fornecedor_id', FILTER_VALIDATE_INT);
-    $nome_produto = trim(filter_input(INPUT_POST, 'nome_produto', FILTER_SANITIZE_STRING));
+    $nome_produto = isset($_POST['nome_produto']) ? trim($_POST['nome_produto']) : '';
     $estoque1 = filter_input(INPUT_POST, 'estoque1', FILTER_VALIDATE_FLOAT);
     $estoque2 = filter_input(INPUT_POST, 'estoque2', FILTER_VALIDATE_FLOAT);
     $estoque3 = filter_input(INPUT_POST, 'estoque3', FILTER_VALIDATE_FLOAT);
     $estoque4 = filter_input(INPUT_POST, 'estoque4', FILTER_VALIDATE_FLOAT);
 
     // Validação de inputs
-    if (!$fornecedor_id || empty($nome_produto) || $estoque1 === false || $estoque2 === false || $estoque3 === false || $estoque4 === false || $estoque1 < 0 || $estoque2 < 0 || $estoque3 < 0 || $estoque4 < 0) {
+    if (!$fornecedor_id || $nome_produto === '' || mb_strlen($nome_produto) > 100 || $estoque1 === false || $estoque2 === false || $estoque3 === false || $estoque4 === false || $estoque1 < 0 || $estoque2 < 0 || $estoque3 < 0 || $estoque4 < 0) {
         echo json_encode(['success' => false, 'message' => 'Dados inválidos fornecidos.']);
         exit();
     }

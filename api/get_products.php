@@ -7,9 +7,11 @@ header('Content-Type: application/json');
 
 $is_admin = ($_SESSION['user_profile'] === 'admin');
 $show_inactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_INT) == 1;
+$sort = isset($_GET['sort']) ? $_GET['sort'] : 'name_asc';
 
-$supplier_id = filter_input(INPUT_GET, 'supplier_id', FILTER_SANITIZE_STRING); // 'all' ou ID
-$search_term = trim(filter_input(INPUT_GET, 'search', FILTER_SANITIZE_STRING));
+$supplier_id = isset($_GET['supplier_id']) ? $_GET['supplier_id'] : null; // 'all' ou ID
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+if (mb_strlen($search_term) > 100) { $search_term = mb_substr($search_term, 0, 100); }
 
 $products = [];
 
@@ -31,8 +33,9 @@ try {
         $params[':search_term'] = '%' . $search_term . '%';
     }
     
-    // Adiciona a condição de 'ativo' para todos exceto admin que optou por ver inativos
-    if (!$is_admin || ($is_admin && !$show_inactive)) {
+    if ($is_admin) {
+        $conditions[] = $show_inactive ? "p.ativo = 0" : "p.ativo = 1";
+    } else {
         $conditions[] = "p.ativo = 1";
     }
 
@@ -40,7 +43,11 @@ try {
         $sql .= " WHERE " . implode(" AND ", $conditions);
     }
 
-    $sql .= " ORDER BY p.nome ASC";
+    if ($sort === 'name_desc') {
+        $sql .= " ORDER BY p.nome DESC";
+    } else {
+        $sql .= " ORDER BY p.nome ASC";
+    }
 
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);

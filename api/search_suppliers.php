@@ -13,7 +13,8 @@ if (!isset($_SESSION['user_id'])) {
 
 $is_admin = ($_SESSION['user_profile'] === 'admin');
 $show_inactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_INT) == 1;
-$search_term = trim(filter_input(INPUT_GET, 'search', FILTER_SANITIZE_STRING));
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+if (mb_strlen($search_term) > 100) { $search_term = mb_substr($search_term, 0, 100); }
 
 $suppliers = [];
 
@@ -27,8 +28,10 @@ try {
         $params[':search_term'] = '%' . $search_term . '%';
     }
 
-    // Adiciona a condição de 'ativo' para todos exceto admin que optou por ver inativos
-    if (!$is_admin || ($is_admin && !$show_inactive)) {
+    // Filtro de ativos/inativos
+    if ($is_admin) {
+        $conditions[] = $show_inactive ? "ativo = 0" : "ativo = 1";
+    } else {
         $conditions[] = "ativo = 1";
     }
 

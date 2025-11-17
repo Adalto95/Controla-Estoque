@@ -4,7 +4,8 @@ require_once 'auth_check.php'; // Inclui a verificação de autenticação
 require_once 'db.php';         // Inclui a conexão com o banco de dados
 
 $is_admin = ($_SESSION['user_profile'] === 'admin');
-$can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
+$permissions = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+$can_add_supplier = ($is_admin || (!empty($permissions['add_supplier']) && $permissions['add_supplier'] == 1));
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -14,7 +15,7 @@ $can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
     <title>Fornecedores - Controle de Estoque</title>
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome para ícones -->
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css)">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
     <div class="main-container">
@@ -23,6 +24,9 @@ $can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
             <nav>
                 <?php if ($is_admin): ?>
                     <a href="manage_users.php" class="button"><i class="fas fa-users-cog"></i> Gerenciar Usuários</a>
+                <?php endif; ?>
+                <?php if ($is_admin || (!empty($permissions['manage_permissions']) && $permissions['manage_permissions'] == 1)): ?>
+                    <a href="manage_permissions.php" class="button"><i class="fas fa-shield-alt"></i> Permissões</a>
                 <?php endif; ?>
                 <a href="logout.php" class="button logout-button">Sair <i class="fas fa-sign-out-alt"></i></a>
             </nav>
@@ -38,7 +42,7 @@ $can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
                             <i class="fas fa-eye-slash"></i> Mostrar Inativos
                         </button>
                     <?php endif; ?>
-                    <?php if ($can_manage_data): ?>
+                    <?php if ($can_add_supplier): ?>
                         <button type="button" class="button add-inline-button" onclick="openAddSupplierModal()">Adicionar Fornecedor <i class="fas fa-plus"></i></button>
                     <?php endif; ?>
                 </div>
@@ -115,9 +119,10 @@ $can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
                             if (isAdmin) {
                                 cardContent += `
                                     <div class="card-actions">
-                                        <button class="icon-button toggle-status-btn" data-supplier-id="${supplier.id}" data-status="${supplier.ativo}">
-                                            ${supplier.ativo == 1 ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-check-circle"></i>'}
+                                        <button class="toggle-status-btn ${supplier.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-supplier-id="${supplier.id}" data-status="${supplier.ativo}">
+                                            ${supplier.ativo == 1 ? 'Inativar' : 'Ativar'}
                                         </button>
+                                        <button class="button btn-delete delete-supplier-btn" data-supplier-id="${supplier.id}" style="margin-left:6px;background-color:#7c2d12"><i class="fas fa-trash"></i> Excluir</button>
                                     </div>
                                 `;
                             }
@@ -166,6 +171,33 @@ $can_manage_data = ($is_admin || $_SESSION['user_profile'] === 'gerente');
                                         } catch (error) {
                                             console.error('Erro ao alternar status do fornecedor:', error);
                                             alert('Erro de conexão ao alternar status do fornecedor.');
+                                        }
+                                        closeConfirmModal();
+                                    });
+                                });
+                            });
+                            document.querySelectorAll('.delete-supplier-btn').forEach(button => {
+                                button.addEventListener('click', function(event) {
+                                    event.stopPropagation();
+                                    event.preventDefault();
+                                    const supplierId = this.dataset.supplierId;
+                                    const message = `Você tem certeza que deseja excluir o fornecedor "${this.closest('.supplier-card').querySelector('h3').textContent}"?\nObservação: somente é permitido excluir se todos os produtos estiverem inativos.`;
+                                    openConfirmModal('excluir', message, async () => {
+                                        try {
+                                            const response = await fetch('api/delete_supplier.php', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                                body: `id=${supplierId}`
+                                            });
+                                            const result = await response.json();
+                                            if (result.success) {
+                                                loadSuppliers(supplierSearchInput.value);
+                                            } else {
+                                                alert(result.message);
+                                            }
+                                        } catch (error) {
+                                            console.error('Erro ao excluir fornecedor:', error);
+                                            alert('Erro de conexão ao excluir fornecedor.');
                                         }
                                         closeConfirmModal();
                                     });
