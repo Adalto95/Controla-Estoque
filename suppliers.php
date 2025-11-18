@@ -119,10 +119,10 @@ $can_add_supplier = ($is_admin || (!empty($permissions['add_supplier']) && $perm
                             if (isAdmin) {
                                 cardContent += `
                                     <div class="card-actions">
-                                        <button class="toggle-status-btn ${supplier.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-supplier-id="${supplier.id}" data-status="${supplier.ativo}">
+                                        <button class="toggle-status-btn btn-compact ${supplier.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-supplier-id="${supplier.id}" data-status="${supplier.ativo}">
                                             ${supplier.ativo == 1 ? 'Inativar' : 'Ativar'}
                                         </button>
-                                        <button class="button btn-delete delete-supplier-btn" data-supplier-id="${supplier.id}" style="margin-left:6px;background-color:#7c2d12"><i class="fas fa-trash"></i> Excluir</button>
+                                        <button class="button btn-compact btn-delete delete-supplier-btn" data-supplier-id="${supplier.id}" style="margin-left:6px;background-color:#7c2d12"><i class="fas fa-trash"></i> Excluir</button>
                                     </div>
                                 `;
                             }

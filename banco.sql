@@ -78,10 +78,11 @@ CREATE TABLE permissions (
     update_stock TINYINT(1) NOT NULL DEFAULT 0,
     toggle_product_status TINYINT(1) NOT NULL DEFAULT 0,
     delete_product TINYINT(1) NOT NULL DEFAULT 0,
+    view_inactive_products TINYINT(1) NOT NULL DEFAULT 0,
     manage_permissions TINYINT(1) NOT NULL DEFAULT 0
 );
 
-INSERT INTO permissions (perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions)
+INSERT INTO permissions (perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, view_inactive_products, manage_permissions)
 VALUES
-('gerente', 1, 1, 0, 1, 1, 1, 0, 0, 1),
-('vendedor', 1, 0, 0, 0, 0, 0, 0, 0, 0);
+('gerente', 1, 1, 0, 1, 1, 1, 0, 0, 0, 1),
+('vendedor', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);

@@ -8,6 +8,8 @@ header('Content-Type: application/json');
 $is_admin = ($_SESSION['user_profile'] === 'admin');
 $show_inactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_INT) == 1;
 $sort = isset($_GET['sort']) ? $_GET['sort'] : 'name_asc';
+$perms = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+$can_view_inactive = $is_admin || (!empty($perms['view_inactive_products']) && (int)$perms['view_inactive_products'] === 1);
 
 $supplier_id = isset($_GET['supplier_id']) ? $_GET['supplier_id'] : null; // 'all' ou ID
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -33,7 +35,7 @@ try {
         $params[':search_term'] = '%' . $search_term . '%';
     }
     
-    if ($is_admin) {
+    if ($can_view_inactive) {
         $conditions[] = $show_inactive ? "p.ativo = 0" : "p.ativo = 1";
     } else {
         $conditions[] = "p.ativo = 1";

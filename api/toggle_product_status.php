@@ -5,10 +5,10 @@ require_once '../db.php';
 
 header('Content-Type: application/json');
 
-if ($_SESSION['user_profile'] !== 'admin') {
-    echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
-    exit();
-}
+$is_admin = ($_SESSION['user_profile'] === 'admin');
+$perms = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
+$can_toggle = $is_admin || (!empty($perms['toggle_product_status']) && (int)$perms['toggle_product_status'] === 1);
+if (!$can_toggle) { echo json_encode(['success' => false, 'message' => 'Acesso negado.']); exit(); }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);

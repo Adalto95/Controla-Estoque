@@ -9,6 +9,8 @@ $can_edit_name = ($is_admin || (!empty($permissions['edit_product_name']) && $pe
 $can_update_stock = ($is_admin || (!empty($permissions['update_stock']) && $permissions['update_stock'] == 1));
 $can_add_product = ($is_admin || (!empty($permissions['add_product']) && $permissions['add_product'] == 1));
 $can_delete_product = ($is_admin || (!empty($permissions['delete_product']) && $permissions['delete_product'] == 1));
+$can_toggle_product_status = ($is_admin || (!empty($permissions['toggle_product_status']) && $permissions['toggle_product_status'] == 1));
+$can_view_inactive_products = ($is_admin || (!empty($permissions['view_inactive_products']) && $permissions['view_inactive_products'] == 1));
 
 $supplier_id = filter_input(INPUT_GET, 'supplier_id', FILTER_VALIDATE_INT);
 $supplier_name = 'Carregando...';
@@ -75,7 +77,7 @@ try {
                     <option value="name_desc">Z–A</option>
                 </select>
                 <div class="control-buttons">
-                    <?php if ($is_admin): ?>
+                    <?php if ($is_admin || $can_view_inactive_products): ?>
                         <button id="toggle-inactive-products" type="button" class="button back-button">
                             <i class="fas fa-eye-slash"></i> Mostrar Inativos
                         </button>
@@ -95,7 +97,7 @@ try {
                             <th>Estoque 2 (m²)</th>
                             <th>Estoque 3 (m²)</th>
                             <th>Estoque 4 (m²)</th>
-                            <?php if ($is_admin || $can_delete_product): ?>
+                            <?php if ($is_admin || $can_delete_product || $can_toggle_product_status): ?>
                                 <th>Ações</th>
                             <?php endif; ?>
                         </tr>
@@ -181,6 +183,8 @@ try {
             let isAdmin = <?php echo json_encode($is_admin); ?>;
             let canEditName = <?php echo json_encode($can_edit_name); ?>;
             let canUpdateStock = <?php echo json_encode($can_update_stock); ?>;
+            let canToggleProductStatus = <?php echo json_encode($can_toggle_product_status); ?>;
+            let canViewInactiveProducts = <?php echo json_encode($can_view_inactive_products); ?>;
             let showInactive = false;
             let currentSort = 'name_asc';
 
@@ -192,7 +196,7 @@ try {
                 noProductsMessage.style.display = 'none';
 
                 let url = `api/get_products.php?supplier_id=${supplierId}&search=${searchTerm}&sort=${currentSort}`;
-                if (isAdmin) {
+                if (isAdmin || canViewInactiveProducts) {
                     url += `&show_inactive=${showInactive ? '1' : '0'}`;
                 }
 
@@ -204,7 +208,11 @@ try {
                     if (data.success && data.products.length > 0) {
                         data.products.forEach(product => {
                             // Converte valores de estoque para float para comparação
-                            const isZeroStock = (parseFloat(product.estoque1) === 0 && parseFloat(product.estoque2) === 0 && parseFloat(product.estoque3) === 0 && parseFloat(product.estoque4) === 0);
+                            const toNum = (v) => {
+                                const n = Number(v);
+                                return isNaN(n) ? 0 : n;
+                            };
+                            const isZeroStock = (toNum(product.estoque1) <= 0 && toNum(product.estoque2) <= 0 && toNum(product.estoque3) <= 0 && toNum(product.estoque4) <= 0);
                             const rowClass = `${isZeroStock ? 'zero-stock' : ''} ${product.ativo == 0 ? 'inactive-row' : ''}`;
                             
                             let rowHtml = `<tr data-product-id="${product.id}" class="${rowClass}">`;
@@ -229,11 +237,11 @@ try {
                                 }
                             }
                             
-                            if (isAdmin || <?php echo json_encode($can_delete_product); ?>) {
+                            if (isAdmin || <?php echo json_encode($can_delete_product); ?> || canToggleProductStatus) {
                                 rowHtml += `
                                     <td class="action-cell">
-                                        ${isAdmin ? `<button class="toggle-status-btn ${product.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-product-id="${product.id}" data-status="${product.ativo}">${product.ativo == 1 ? 'Inativar' : 'Ativar'}</button>` : ''}
-                                        <button class="button" style="background-color:#dc3545" data-action="delete-product" data-product-id="${product.id}" ${!isZeroStock ? 'disabled' : ''}>Excluir</button>
+                                        ${(isAdmin || canToggleProductStatus) ? `<button class="toggle-status-btn btn-compact ${product.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-product-id="${product.id}" data-status="${product.ativo}">${product.ativo == 1 ? 'Inativar' : 'Ativar'}</button>` : ''}
+                                        <button class="button btn-compact" style="background-color:#dc3545" data-action="delete-product" data-product-id="${product.id}" ${!isZeroStock ? 'disabled' : ''}>Excluir</button>
                                     </td>
                                 `;
 
@@ -252,7 +260,7 @@ try {
                         }
                         
                         // Adiciona listeners para os botões de inativação
-                        if (isAdmin) {
+                        if (isAdmin || canToggleProductStatus) {
                              document.querySelectorAll('.toggle-status-btn').forEach(button => {
                                 button.addEventListener('click', function() {
                                     const productId = this.dataset.productId;

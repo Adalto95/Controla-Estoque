@@ -3,6 +3,10 @@
 
 session_start();
 require_once 'db.php'; // Inclui o arquivo de conexão com o banco de dados
+$hasDel = false;
+try { $chk = $conn->query("SHOW COLUMNS FROM permissions LIKE 'delete_product'"); $hasDel = ($chk && $chk->rowCount() > 0); } catch (PDOException $e) { $hasDel = false; }
+$hasViewInactive = false;
+try { $chk2 = $conn->query("SHOW COLUMNS FROM permissions LIKE 'view_inactive_products'"); $hasViewInactive = ($chk2 && $chk2->rowCount() > 0); } catch (PDOException $e) { $hasViewInactive = false; }
 
 $error = '';
 
@@ -30,11 +34,18 @@ if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
                     'manage_permissions' => 1
                 ];
             } else {
-                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $cols = "view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status";
+                if ($hasDel) { $cols .= ", delete_product"; }
+                if ($hasViewInactive) { $cols .= ", view_inactive_products"; }
+                $cols .= ", manage_permissions";
+                $sql = "SELECT $cols FROM permissions WHERE perfil = :perfil";
+                $pstmt = $conn->prepare($sql);
                 $pstmt->bindParam(':perfil', $u->perfil);
                 $pstmt->execute();
                 $perms = $pstmt->fetch();
                 $_SESSION['permissions'] = $perms ? (array)$perms : [];
+                if (!$hasDel) { $_SESSION['permissions']['delete_product'] = 0; }
+                if (!$hasViewInactive) { $_SESSION['permissions']['view_inactive_products'] = 0; }
             }
             header("Location: suppliers.php");
             exit();
@@ -90,11 +101,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'manage_permissions' => 1
                 ];
             } else {
-                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $cols = "view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status";
+                if ($hasDel) { $cols .= ", delete_product"; }
+                if ($hasViewInactive) { $cols .= ", view_inactive_products"; }
+                $cols .= ", manage_permissions";
+                $sql = "SELECT $cols FROM permissions WHERE perfil = :perfil";
+                $pstmt = $conn->prepare($sql);
                 $pstmt->bindParam(':perfil', $user->perfil);
                 $pstmt->execute();
                 $perms = $pstmt->fetch();
                 $_SESSION['permissions'] = $perms ? (array)$perms : [];
+                if (!$hasDel) { $_SESSION['permissions']['delete_product'] = 0; }
+                if (!$hasViewInactive) { $_SESSION['permissions']['view_inactive_products'] = 0; }
             }
             if (isset($_POST['remember_me'])) {
                 try {

@@ -2,7 +2,17 @@
 require_once 'auth_check.php';
 require_once 'db.php';
 checkProfile(['admin','gerente']);
-$stmt = $conn->query("SELECT perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions");
+$hasDel = false; $hasViewInactive = false;
+try { $chk = $conn->query("SHOW COLUMNS FROM permissions LIKE 'delete_product'"); $hasDel = ($chk && $chk->rowCount() > 0); } catch (PDOException $e) { $hasDel = false; }
+try { $chk2 = $conn->query("SHOW COLUMNS FROM permissions LIKE 'view_inactive_products'"); $hasViewInactive = ($chk2 && $chk2->rowCount() > 0); } catch (PDOException $e) { $hasViewInactive = false; }
+if (!$hasDel) { try { $conn->exec("ALTER TABLE permissions ADD COLUMN delete_product TINYINT(1) NOT NULL DEFAULT 0"); $hasDel = true; } catch (PDOException $e) { $hasDel = false; } }
+if (!$hasViewInactive) { try { $conn->exec("ALTER TABLE permissions ADD COLUMN view_inactive_products TINYINT(1) NOT NULL DEFAULT 0"); $hasViewInactive = true; } catch (PDOException $e) { $hasViewInactive = false; } }
+$cols = "perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status";
+if ($hasDel) { $cols .= ", delete_product"; }
+if ($hasViewInactive) { $cols .= ", view_inactive_products"; }
+$cols .= ", manage_permissions";
+$sql = "SELECT $cols FROM permissions";
+$stmt = $conn->query($sql);
 $rows = $stmt->fetchAll();
 $map = [];
 foreach ($rows as $r) { $map[$r->perfil] = (array)$r; }
@@ -46,7 +56,12 @@ foreach ($rows as $r) { $map[$r->perfil] = (array)$r; }
                             <label class="perm-item"><input type="checkbox" name="edit_product_name" <?php echo !empty($p['edit_product_name'])?'checked':''; ?>> Editar nome de produto</label>
                             <label class="perm-item"><input type="checkbox" name="update_stock" <?php echo !empty($p['update_stock'])?'checked':''; ?>> Atualizar estoque</label>
                             <label class="perm-item"><input type="checkbox" name="toggle_product_status" <?php echo !empty($p['toggle_product_status'])?'checked':''; ?>> Ativar/Inativar produto</label>
+                            <?php if ($hasDel): ?>
                             <label class="perm-item"><input type="checkbox" name="delete_product" <?php echo !empty($p['delete_product'])?'checked':''; ?>> Excluir produto</label>
+                            <?php endif; ?>
+                            <?php if ($hasViewInactive): ?>
+                            <label class="perm-item"><input type="checkbox" name="view_inactive_products" <?php echo !empty($p['view_inactive_products'])?'checked':''; ?>> Ver produtos inativos</label>
+                            <?php endif; ?>
                             <label class="perm-item"><input type="checkbox" name="manage_permissions" <?php echo !empty($p['manage_permissions'])?'checked':''; ?>> Gerenciar permissões</label>
                         </div>
                         <button type="submit" class="button" style="margin-top:1rem">Salvar</button>

@@ -214,7 +214,7 @@ hr {
 
 .supplier-list-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
 }
@@ -274,10 +274,10 @@ hr {
 
 .card-actions {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    display: flex;
-    gap: 0.5rem;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    display: inline-flex;
+    gap: 0.25rem;
 }
 
 .icon-button {
@@ -658,15 +658,31 @@ hr {
 
 .toggle-status-btn {
     border: none;
-    padding: 6px 12px;
-    font-size: 14px;
+    padding: 4px 8px;
+    font-size: 12px;
     border-radius: 6px;
     cursor: pointer;
     color: #fff;
-    font-weight: bold;
+    font-weight: 600;
     transition: 0.2s;
 }
 .btn-inativar { background-color: #dc3545; }
 .btn-inativar:hover { background-color: #b02a37; }
 .btn-ativar { background-color: #28a745; }
 .btn-ativar:hover { background-color: #1e7e34; }
+.btn-compact {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    min-width: auto !important;
+}
+
+.card-actions .button, .card-actions .toggle-status-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.action-cell .button {
+    padding: 4px 8px;
+    font-size: 12px;
+}

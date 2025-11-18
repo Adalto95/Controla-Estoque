@@ -15,7 +15,9 @@ try {
     $stmt->execute();
     $p = $stmt->fetch();
     if (!$p) { echo json_encode(['success'=>false,'message'=>'Produto não encontrado.']); exit(); }
-    $ok = (float)$p->estoque1 === 0.0 && (float)$p->estoque2 === 0.0 && (float)$p->estoque3 === 0.0 && (float)$p->estoque4 === 0.0;
+    $e1 = (float)$p->estoque1; $e2 = (float)$p->estoque2; $e3 = (float)$p->estoque3; $e4 = (float)$p->estoque4;
+    $eps = 0.000001;
+    $ok = (abs($e1) <= $eps) && (abs($e2) <= $eps) && (abs($e3) <= $eps) && (abs($e4) <= $eps);
     if (!$ok) { echo json_encode(['success'=>false,'message'=>'Estoques devem estar zerados para excluir.']); exit(); }
     $del = $conn->prepare('DELETE FROM produtos WHERE id = :id');
     $del->bindParam(':id',$id);
