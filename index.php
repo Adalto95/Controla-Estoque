@@ -30,7 +30,7 @@ if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
                     'manage_permissions' => 1
                 ];
             } else {
-                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions WHERE perfil = :perfil");
                 $pstmt->bindParam(':perfil', $u->perfil);
                 $pstmt->execute();
                 $perms = $pstmt->fetch();
@@ -51,15 +51,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($email) || empty($senha)) {
         $error = "Por favor, preencha todos os campos.";
     } else {
-        // Usa MD5 para a senha, conforme seu esquema de banco de dados
-        // NOTA DE SEGURANÇA: MD5 não é seguro para senhas. Recomenda-se usar password_hash() e password_verify().
-        $senha_hash = MD5($senha); 
-
-        $stmt = $conn->prepare("SELECT id, nome, perfil FROM usuarios WHERE email = :email AND senha = :senha");
+        $stmt = $conn->prepare("SELECT id, nome, perfil, senha FROM usuarios WHERE email = :email");
         $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':senha', $senha_hash);
         $stmt->execute();
-        $user = $stmt->fetch();
+        $row = $stmt->fetch();
+        $user = null;
+        if ($row) {
+            $stored = $row->senha;
+            $ok = false;
+            if (!empty($stored) && password_verify($senha, $stored)) {
+                $ok = true;
+            } elseif (strlen($stored) === 32 && MD5($senha) === $stored) {
+                $ok = true;
+                $new_hash = password_hash($senha, PASSWORD_DEFAULT);
+                try {
+                    $up = $conn->prepare("UPDATE usuarios SET senha = :h WHERE id = :id");
+                    $up->bindParam(':h', $new_hash);
+                    $up->bindParam(':id', $row->id);
+                    $up->execute();
+                } catch (PDOException $e) { error_log('Falha ao atualizar hash: '.$e->getMessage()); }
+            }
+            if ($ok) { $user = (object)['id'=>$row->id,'nome'=>$row->nome,'perfil'=>$row->perfil]; }
+        }
 
         if ($user) {
             $_SESSION['user_id'] = $user->id;
@@ -77,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'manage_permissions' => 1
                 ];
             } else {
-                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions WHERE perfil = :perfil");
                 $pstmt->bindParam(':perfil', $user->perfil);
                 $pstmt->execute();
                 $perms = $pstmt->fetch();

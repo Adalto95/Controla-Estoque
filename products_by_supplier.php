@@ -8,6 +8,7 @@ $permissions = isset($_SESSION['permissions']) ? $_SESSION['permissions'] : [];
 $can_edit_name = ($is_admin || (!empty($permissions['edit_product_name']) && $permissions['edit_product_name'] == 1));
 $can_update_stock = ($is_admin || (!empty($permissions['update_stock']) && $permissions['update_stock'] == 1));
 $can_add_product = ($is_admin || (!empty($permissions['add_product']) && $permissions['add_product'] == 1));
+$can_delete_product = ($is_admin || (!empty($permissions['delete_product']) && $permissions['delete_product'] == 1));
 
 $supplier_id = filter_input(INPUT_GET, 'supplier_id', FILTER_VALIDATE_INT);
 $supplier_name = 'Carregando...';
@@ -94,7 +95,7 @@ try {
                             <th>Estoque 2 (m²)</th>
                             <th>Estoque 3 (m²)</th>
                             <th>Estoque 4 (m²)</th>
-                            <?php if ($is_admin): ?>
+                            <?php if ($is_admin || $can_delete_product): ?>
                                 <th>Ações</th>
                             <?php endif; ?>
                         </tr>
@@ -228,15 +229,11 @@ try {
                                 }
                             }
                             
-                            if (isAdmin) {
+                            if (isAdmin || <?php echo json_encode($can_delete_product); ?>) {
                                 rowHtml += `
                                     <td class="action-cell">
-                                        <button 
-                                            class="toggle-status-btn ${product.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" 
-                                            data-product-id="${product.id}" 
-                                            data-status="${product.ativo}">
-                                            ${product.ativo == 1 ? 'Inativar' : 'Ativar'}
-                                        </button>
+                                        ${isAdmin ? `<button class="toggle-status-btn ${product.ativo == 1 ? 'btn-inativar' : 'btn-ativar'}" data-product-id="${product.id}" data-status="${product.ativo}">${product.ativo == 1 ? 'Inativar' : 'Ativar'}</button>` : ''}
+                                        <button class="button" style="background-color:#dc3545" data-action="delete-product" data-product-id="${product.id}" ${!isZeroStock ? 'disabled' : ''}>Excluir</button>
                                     </td>
                                 `;
 
@@ -288,6 +285,31 @@ try {
                                 });
                             });
                         }
+                        document.querySelectorAll('button[data-action="delete-product"]').forEach(button => {
+                            button.addEventListener('click', function() {
+                                const productId = this.dataset.productId;
+                                const nameCell = this.closest('tr').querySelector('td');
+                                const message = `Excluir o produto "${nameCell.textContent}"? Estoque precisa estar zerado.`;
+                                openConfirmModal('excluir', message, async () => {
+                                    try {
+                                        const resp = await fetch('api/delete_product.php', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                            body: `id=${productId}`
+                                        });
+                                        const data = await resp.json();
+                                        if (data.success) {
+                                            loadProducts(currentSupplierId, productSearchInput.value);
+                                        } else {
+                                            alert(data.message);
+                                        }
+                                    } catch (e) {
+                                        alert('Erro de conexão ao excluir.');
+                                    }
+                                    closeConfirmModal();
+                                });
+                            });
+                        });
 
                     } else {
                         noProductsMessage.style.display = 'block';

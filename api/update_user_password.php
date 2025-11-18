@@ -18,9 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'message' => 'Dados inválidos.']);
         exit();
     }
-    
-    // MD5 para a nova senha
-    $password_hash = MD5($new_password);
+    $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
     
     try {
         $stmt = $conn->prepare("UPDATE usuarios SET senha = :password_hash WHERE id = :user_id AND perfil != 'admin'");

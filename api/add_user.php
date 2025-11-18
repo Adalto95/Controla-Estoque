@@ -21,8 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-    // MD5 para a senha
-    $password_hash = MD5($password);
+    $password_hash = password_hash($password, PASSWORD_DEFAULT);
     
     try {
         $stmt = $conn->prepare("INSERT INTO usuarios (nome, email, senha, perfil) VALUES (:name, :email, :password_hash, :profile)");

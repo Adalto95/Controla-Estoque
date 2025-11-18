@@ -2,10 +2,10 @@
 // db.php - Conexão com o banco de dados
 // Este arquivo deve ser incluído em todas as páginas que precisam de acesso ao DB.
 
-$host = getenv('DB_HOST') ?: "localhost";
-$user = getenv('DB_USER') ?: "controlaestoque";
-$pass = getenv('DB_PASS') ?: "senha";
-$db_name = getenv('DB_NAME') ?: "controlaestoque";
+$host = "localhost";
+$user = "controlaestoque";
+$pass = "senha";
+$db_name = "controlaestoque";
 
 
 try {

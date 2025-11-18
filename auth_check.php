@@ -28,7 +28,7 @@ if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
                     'manage_permissions' => 1
                 ];
             } else {
-                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions WHERE perfil = :perfil");
+                $pstmt = $conn->prepare("SELECT view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions WHERE perfil = :perfil");
                 $pstmt->bindParam(':perfil', $u->perfil);
                 $pstmt->execute();
                 $perms = $pstmt->fetch();

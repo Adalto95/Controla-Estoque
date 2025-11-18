@@ -2,7 +2,7 @@
 require_once 'auth_check.php';
 require_once 'db.php';
 checkProfile(['admin','gerente']);
-$stmt = $conn->query("SELECT perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, manage_permissions FROM permissions");
+$stmt = $conn->query("SELECT perfil, view_suppliers, add_supplier, toggle_supplier_status, add_product, edit_product_name, update_stock, toggle_product_status, delete_product, manage_permissions FROM permissions");
 $rows = $stmt->fetchAll();
 $map = [];
 foreach ($rows as $r) { $map[$r->perfil] = (array)$r; }
@@ -46,6 +46,7 @@ foreach ($rows as $r) { $map[$r->perfil] = (array)$r; }
                             <label class="perm-item"><input type="checkbox" name="edit_product_name" <?php echo !empty($p['edit_product_name'])?'checked':''; ?>> Editar nome de produto</label>
                             <label class="perm-item"><input type="checkbox" name="update_stock" <?php echo !empty($p['update_stock'])?'checked':''; ?>> Atualizar estoque</label>
                             <label class="perm-item"><input type="checkbox" name="toggle_product_status" <?php echo !empty($p['toggle_product_status'])?'checked':''; ?>> Ativar/Inativar produto</label>
+                            <label class="perm-item"><input type="checkbox" name="delete_product" <?php echo !empty($p['delete_product'])?'checked':''; ?>> Excluir produto</label>
                             <label class="perm-item"><input type="checkbox" name="manage_permissions" <?php echo !empty($p['manage_permissions'])?'checked':''; ?>> Gerenciar permissões</label>
                         </div>
                         <button type="submit" class="button" style="margin-top:1rem">Salvar</button>
